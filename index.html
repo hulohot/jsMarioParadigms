@@ -1,0 +1,203 @@
+<head>
+    <title>Mario!</title>
+    <meta charset="UTF-8">
+</head>
+
+<body>
+    <br>
+    <canvas id="myCanvas" width="1000" height="500" style="border:1px solid #cccccc;"></canvas>
+
+    <script type="text/javascript">
+        let horizontal_speed = 5;
+        let vertical_speed = 15;
+
+        class Sprite {
+            constructor(x, y, w, h, spriteType, image_url, update_method, onclick_method) {
+                this.x = x;
+                this.y = y;
+                this.w = w;
+                this.h = h;
+                this.sprite_type = spriteType;
+                this.vertical_velocity = 0;
+                this.image = new Image();
+                this.image.src = image_url;
+                this.update = update_method;
+                this.onclick = onclick_method;
+
+                // Mario Attributes
+                this.solid_count = 0;
+                this.mario_sprite_val = 0;
+
+                // Coin Block Attributes
+                this.coin_sprite_val = 0;
+                this.coin_block_val = 0;
+                this.coin_block_timer = 0;
+                this.coin_block_hit = false;
+
+                // Coin Attributes
+                this.horizontal_velocity = Math.random() * 18;
+            }
+
+            ignore_click(x, y) {
+            }
+
+            move(dx, dy) {
+                // console.log("This is the Jump Method");
+                this.dest_x = this.x + dx;
+                this.dest_y = this.y + dy;
+            }
+
+            marioUpdate() {
+                if (this.dest_x === undefined)
+                    return;
+                if (this.x < this.dest_x)
+                    this.x+=horizontal_speed;
+                else if (this.x > this.dest_x)
+                    this.x-=horizontal_speed;
+                if (this.y < this.dest_y)
+                    this.y+=vertical_speed;
+                else if (this.y > this.dest_y && this.solid_count < 4){
+                    this.vertical_velocity-=vertical_speed;
+                }
+
+                this.gravity();
+            }
+            
+            gravity() {
+                this.vertical_velocity += 5;
+                this.y += this.vertical_velocity;
+                this.solid_count++;
+    
+                if (this.y >= 400) {
+                    this.vertical_velocity = 0;
+                    this.y = 400;
+                    this.solid_count = 0;
+                }
+            }
+
+            sit_still() {
+            }
+        }
+
+        class Model {
+            constructor() {
+                this.sprites = [];
+                this.mario = new Sprite(400, 100, 60, 95, "mario", "mario1.png", Sprite.prototype.marioUpdate, Sprite.prototype.ignore_click);
+                this.sprites.push(this.mario);
+            }
+
+            update() {
+                for (let i = 0; i < this.sprites.length; i++) {
+                    this.sprites[i].update();
+                }
+            }
+
+            onclick(x, y) {
+                for (let i = 0; i < this.sprites.length; i++) {
+                    this.sprites[i].onclick(x, y);
+                }
+            }
+
+            move(dx, dy) {
+                this.mario.move(dx, dy);
+            }
+        }
+
+        class View {
+            constructor(model) {
+                this.model = model;
+                this.canvas = document.getElementById("myCanvas");
+                this.mario = new Image();
+                this.mario.src = "mario1.png";
+            }
+
+            update() {
+                let ctx = this.canvas.getContext("2d");
+                ctx.clearRect(0, 0, 1000, 500);
+                for (let i = 0; i < this.model.sprites.length; i++) {
+                    let sprite = this.model.sprites[i];
+                    ctx.drawImage(sprite.image, sprite.x, sprite.y);
+                }
+            }
+        }
+
+        class Controller {
+            constructor(model, view) {
+                this.model = model;
+                this.view = view;
+                this.key_right = false;
+                this.key_left = false;
+                // this.key_up = false;
+                this.key_down = false;
+                this.key_space = false;
+                let self = this;
+                view.canvas.addEventListener("click", function (event) { self.onClick(event); });
+                view.canvas.addEventListener("mouseDown", function (event) { self.mouseDown(event); });
+                view.canvas.addEventListener("mouseUp", function (event) { self.mouseUp(event); });
+                document.addEventListener('keydown', function (event) { self.keyDown(event); }, false);
+                document.addEventListener('keyup', function (event) { self.keyUp(event); }, false);
+            }
+
+            onClick(event) {
+                this.model.onclick(event.pageX - this.view.canvas.offsetLeft, event.pageY - this.view.canvas.offsetTop);
+            }
+
+            // mouseDown(event) {
+            //     this.model.onclick(event.pageX - this.view.canvas.offsetLeft, event.pageY - this.view.canvas.offsetTop);
+            // }
+
+            // mouseUp(event) {
+            //     this.model.onclick(event.pageX - this.view.canvas.offsetLeft, event.pageY - this.view.canvas.offsetTop);
+            // } 
+
+            keyDown(event) {
+                if (event.keyCode == 39) this.key_right = true;
+                else if (event.keyCode == 37) this.key_left = true;
+                // else if (event.keyCode == 38) this.key_up = true;
+                else if (event.keyCode == 40) this.key_down = true;
+                else if (event.keyCode == 32) this.key_space = true;
+            }
+
+            keyUp(event) {
+                if (event.keyCode == 39) this.key_right = false;
+                else if (event.keyCode == 37) this.key_left = false;
+                // else if (event.keyCode == 38) this.key_up = false;
+                else if (event.keyCode == 40) this.key_down = false;
+                else if (event.keyCode == 32) this.key_space = false;
+            }
+
+            update() {
+                let dx = 0;
+                let dy = 0;
+                if (this.key_right) dx += horizontal_speed;
+                if (this.key_left) dx -= horizontal_speed;
+                if (this.key_down) dy += vertical_speed;
+                if (this.key_space && this.model.sprite_type == "mario") {
+                    dy -= vertical_speed;
+                } 
+                if (dx != 0 || dy != 0)
+                    this.model.move(dx, dy);
+            }
+        }
+
+        class Game {
+            constructor() {
+                this.model = new Model();
+                this.view = new View(this.model);
+                this.controller = new Controller(this.model, this.view);
+            }
+
+            onTimer() {
+                this.controller.update();
+                this.model.update();
+                this.view.update();
+            }
+        }
+
+
+        let game = new Game();
+        let timer = setInterval(function () { game.onTimer(); }, 40);
+
+    </script>
+
+</body>
